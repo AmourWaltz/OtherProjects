@@ -1,4 +1,4 @@
-<mxfile host="app.diagrams.net" modified="2022-02-27T13:42:53.159Z" agent="5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.3 Safari/605.1.15" etag="OO1UrP6r_IP-wZLzP0wx" version="16.6.1" type="github">
+<mxfile host="app.diagrams.net" modified="2022-02-27T13:43:04.074Z" agent="5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.3 Safari/605.1.15" etag="OLTDAzPw41dlAepbKJtJ" version="16.6.1" type="github">
   <diagram id="z0HHgGlnCuGLutk6PVgF" name="Page-1">
     <mxGraphModel dx="2201" dy="921" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="1" shadow="0">
       <root>
@@ -183,7 +183,7 @@
           <mxGeometry x="-570" y="280" width="233" height="170" as="geometry" />
         </mxCell>
         <mxCell id="FRFISUaKzv1FwXzOjavN-89" value="&lt;span style=&quot;font-size: 14px&quot;&gt;$$\boldsymbol &lt;br&gt;X^{l}_{\tau-1}$$&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fontFamily=Georgia;" parent="1" vertex="1">
-          <mxGeometry x="-432" y="274.75" width="130" height="40" as="geometry" />
+          <mxGeometry x="-429" y="274.75" width="130" height="40" as="geometry" />
         </mxCell>
         <mxCell id="FRFISUaKzv1FwXzOjavN-94" value="&lt;font style=&quot;font-size: 22px&quot;&gt;×N&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fontFamily=Georgia;" parent="1" vertex="1">
           <mxGeometry x="-345" y="311.75" width="50" height="20" as="geometry" />
