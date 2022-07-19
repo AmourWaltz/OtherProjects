@@ -31,9 +31,9 @@ Please run the following command and install the packages.
  # level: using word-level or bpe-level data set.
  # stage: 0 - Data preparation; 1 - LM training; 2 - PPL evaluation; 3 - N-best rescoring.
 
- # Train a baseline Transformer LM in bpe-level:
- bash local/pytorchnn/run_nnlm_trans_swbd.sh --stage 1 --gpu 1 --level bpe
+ # Train a baseline Transformer LM in word-level:
+ bash local/pytorchnn/run_nnlm_trans_swbd.sh --stage 1 --gpu 1 --level word
 
- # Train a baseline LSTM LM in word-level:
- bash local/pytorchnn/run_nnlm_lstm_swbd.sh --stage 1 --gpu 2 --level word
+ # Train a baseline LSTM LM in bpe-level:
+ bash local/pytorchnn/run_nnlm_lstm_swbd.sh --stage 1 --gpu 2 --level bpe
 ```
