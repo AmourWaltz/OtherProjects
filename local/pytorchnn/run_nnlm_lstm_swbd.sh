@@ -150,6 +150,10 @@ fi
 
 ##################################################################################################
 # Stage 3: Perform nbest-rescoring on decoding files with a PyTorch trained neural LM.
+#         The recipe is used for TDNN hybrid system based on Kaldi.
+#         When applied on other acoustic conditions with different decoding systems,
+#         set stage=6 and modify the nbest-list path in steps/pytorchnn/compute_nbest_scores.sh.
+#         The scores of nbest-list can be found in ${decode_dir}_${decode_dir_suffix}/archives.1/lmwt.nn
 ##################################################################################################
 
 if [ $stage -le 3 ]; then
