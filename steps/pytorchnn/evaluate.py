@@ -209,7 +209,6 @@ def compute_sentence_ppl(nnlm_1, criterion, ntokens, input, target, model_type='
         input_r = torch.flip(target.unsqueeze(-1), [0])
         pass
 
-    mems = tuple()
     with torch.no_grad():
         # Setp 1: Compute the probability of the main LM.
         # Noted that the input of the backward LSTM LM (model_var == 'bid') is the reversed word sequence input_r.
@@ -242,7 +241,7 @@ def compute_sentence_ppl(nnlm_1, criterion, ntokens, input, target, model_type='
             else:
                 output_2, hid_2 = nnlm_2(input[-length:], hid_2)
                 # Interpolated in probability domain.
-                output = weight * output_1[-length:] + (1. - weight) * output_2
+                output = (1. - weight) * output_1[-length:] + weight * output_2
                 loss = criterion(output.view(-1, ntokens), target)
 
                 # Interpolated in log domain. 
@@ -364,6 +363,23 @@ def compute_ppl(eval_set, nnlm_1, criterion, ntokens, vocab, model_type, seq_len
     return sent_and_ppl
 
 
+def write_prob(sent_and_ppl, path):
+    r"""Write out sentence probability of sentence of evaluation set.
+        ...
+
+    Args:
+        sent_and_ppl:     The sentences and their ppl represented by a dictionary.
+        path (str):       A output file of sentences' probability.
+    """
+
+    with open(os.path.join(path, 'prob'), 'w', encoding='utf-8') as f:
+        for ppl in sent_and_ppl.values():
+            f.write('%.4f\n' % (1 / ppl))
+            pass
+        pass
+    pass
+
+
 #############################
 # Load data
 #############################
@@ -448,5 +464,5 @@ eval_ppl = compute_ppl(eval_set, nnlm_1, criterion, ntokens, vocab,
                     args.model, args.seq_len, nnlm_2, args.nnlm_weight, 
                     args.cross_utt, args.model_var)
 # print("Write sentence ppl out\n", eval_ppl)
-
+write_prob(eval_ppl, args.outfile)
 

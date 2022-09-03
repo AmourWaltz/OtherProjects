@@ -10,6 +10,7 @@ import torch.nn.init as init
 import numpy as np
 from torch.nn.utils.rnn import PackedSequence
 
+from adaptive_softmax import AdaptiveLogSoftmax
 from embed_regularize import embedded_dropout
 from locked_dropout import LockedDropout
 

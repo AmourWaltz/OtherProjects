@@ -22,6 +22,8 @@ parser.add_argument('--inpfile', type=str, required=True,
                     help="Input file of nbest-list")
 parser.add_argument('--outfile', type=str, required=True,
                     help="Output file of nbest-list scores")
+parser.add_argument('--uttid', type=str, required=True,
+                    help="Sorted utterance in time sequence")
 parser.add_argument('--vocabulary', type=str, required=True,
                     help="Vocabulary used for training")
 parser.add_argument('--cuda', action='store_true', help='use CUDA')
@@ -97,6 +99,36 @@ def load_nbest(path):
     return nbest
 
 
+def load_uttid(path):
+    r"""Read sorted utterance ids.
+
+    Assume the input file format is as following:
+        en_4156-A_030185-030248 oh yeah
+        en_4156-A_030470-030672 well i'm going to have mine and two more classes
+        ...
+
+    Args:
+        path (str): A file of utterance lists with the above format.
+
+    Returns:
+        The utterance id list represented by the strings.
+    """
+
+    uttid = []
+    with open(path, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            try:
+                key, _ = line.split(' ', 1)
+            except ValueError:
+                key = line
+            uttid.append(key)
+            pass
+        pass
+
+    return uttid
+
+
 def read_vocab(path):
     r"""Read vocabulary.
 
@@ -150,7 +182,26 @@ def get_input_and_target(sent, vocab, cross_utt=False, seq_len=128):
     oov_num = 0
     input_ids, output_ids = [], []
 
-    for word in input_string.split():
+    #############################
+    # Using cross-utterance or not
+    #############################
+    if cross_utt == 1 and os.path.exists(os.path.join(args.outfile, 'context_text.txt')):
+        with open(os.path.join(args.outfile, 'context_text.txt'), "r", encoding='utf-8') as f:
+            context = f.readline()
+            context = context.split()
+            input_list = context[-seq_len:] + input_string.split()
+            pass
+        print("inputs:", ' '.join(input_list))
+        pass
+    else:
+        input_list = input_string.split()
+        pass
+
+
+    #############################
+    # Convert sentence to integers
+    #############################
+    for word in input_list:
         try:
             input_ids.append(vocab[word]) # word.lower()
             pass
@@ -160,7 +211,7 @@ def get_input_and_target(sent, vocab, cross_utt=False, seq_len=128):
             input_ids.append(vocab['<unk>'])
             pass
         pass
-    
+
     for word in output_string.split():
         try:
             output_ids.append(vocab[word]) # word.lower()
@@ -170,25 +221,37 @@ def get_input_and_target(sent, vocab, cross_utt=False, seq_len=128):
         pass
 
     #############################
-    # Using cross-utterance or not
+    # Normalize input length
     #############################
-    if cross_utt == 1 and os.path.exists(os.path.join(args.outfile, 'context_id.txt')):
-        with open(os.path.join(args.outfile, 'context_id.txt'), "r") as f:
-            for line in f:
-                line = line.split()
-                line = list(map(int, line))
-                input_ids = line + input_ids
-                if len(input_ids) >= seq_len:
-                    break
-                pass
+    length = len(output_ids)
+    if cross_utt == 1:
+        if len(input_ids) > seq_len and length < seq_len:
+            input_ids = input_ids[-seq_len:]
             pass
+        else:
+            input_ids = input_ids[-length:]
         pass
+
+    #############################
+    # Old version
+    #############################
+    # if cross_utt == 1 and os.path.exists(os.path.join(args.outfile, 'context_id.txt')):
+    #     with open(os.path.join(args.outfile, 'context_id.txt'), "r") as f:
+    #         for line in f:
+    #             line = line.split()
+    #             line = list(map(int, line))
+    #             input_ids = line + input_ids
+    #             if len(input_ids) >= seq_len:
+    #                 break
+    #             pass
+    #         pass
+    #     pass
 
     return input_ids, output_ids, oov_num
 
 
-def compute_sentence_score(nnlm_1, criterion, ntokens, input, target, model_type='LSTM', seq_len=128, 
-                        nnlm_2=None, weight=0.0, cross_utt=False, hid_1=None, hid_2=None):
+def compute_sentence_score(nnlm_1, criterion, ntokens, inputs, target, model_type='LSTM', seq_len=128, 
+                        nnlm_2=None, weight=0.0, hid_1=None, hid_2=None):
     r"""Compute neural language model score of a sentence.
 
     Args:
@@ -200,7 +263,6 @@ def compute_sentence_score(nnlm_1, criterion, ntokens, input, target, model_type
         seq_len:    Length of history context
         nnlm_2:     The interpolated neural language model.
         weight:     Weight of interpolated neural language model.
-        cross_utt:  Using cross-utterance representation or not.
         model_var:  Using the variants of standard neural language model or not.
         hidden:     Initial hidden state for getting the score of the input
                     sentence with a recurrent-typed neural language model
@@ -214,22 +276,21 @@ def compute_sentence_score(nnlm_1, criterion, ntokens, input, target, model_type
     """
 
     length = len(target)
-    input = torch.LongTensor(input).view(-1, 1).contiguous().to(device)
+    inputs = torch.LongTensor(inputs).view(-1, 1).contiguous().to(device)
     target = torch.LongTensor(target).view(-1).contiguous().to(device)
 
     # # Bi-LSTM: A backward LSTM as main language model and interpolated with a forward standard LSTM model.
     if args.model_var == 'bid':
-        target_r = torch.flip(input.squeeze(-1), [0])
+        target_r = torch.flip(inputs.squeeze(-1), [0])
         input_r = torch.flip(target.unsqueeze(-1), [0])
         pass
 
-    mems = tuple()
     with torch.no_grad():
         # Setp 1: Compute the probability of the main LM.
         # Noted that the input of the backward LSTM LM (model_var == 'bid') is the reversed word sequence input_r.
         if model_type == 'Transformer':
             if args.model_var == 'none':
-                output_1 = nnlm_1(input)
+                output_1 = nnlm_1(inputs)
                 pass
             pass
         else:
@@ -237,7 +298,7 @@ def compute_sentence_score(nnlm_1, criterion, ntokens, input, target, model_type
                 output_1, hid_1 = nnlm_1(input_r, hid_1)
                 pass
             else:
-                output_1, hid_1 = nnlm_1(input[-length:], hid_1)
+                output_1, hid_1 = nnlm_1(inputs[-length:], hid_1)
                 pass
             pass
 
@@ -248,15 +309,15 @@ def compute_sentence_score(nnlm_1, criterion, ntokens, input, target, model_type
             # we prefer to compute the interpolated sentence score only combined with the forward LSTM LM.
             # Specifically, the loss_1 needs to be computed using the reversed backward sequence target_r. 
             if args.model_var == 'bid':
-                output_2, hid_2 = nnlm_2(input[-length:], hid_2)
+                output_2, hid_2 = nnlm_2(inputs[-length:], hid_2)
                 loss_1 = criterion(output_1.view(-1, ntokens), target_r[:length])
                 loss_2 = criterion(output_2.view(-1, ntokens), target)
                 loss = weight * loss_1 + (1. - weight) * loss_2
                 pass
             else:
-                output_2, hid_2 = nnlm_2(input[-length:], hid_2)
+                output_2, hid_2 = nnlm_2(inputs[-length:], hid_2)
                 # Interpolated in probability domain.
-                output = weight * output_1[-length:] + (1. - weight) * output_2
+                output = (1. - weight) * output_1[-length:] + weight * output_2
                 loss = criterion(output.view(-1, ntokens), target)
 
                 # Interpolated in log domain. 
@@ -273,17 +334,18 @@ def compute_sentence_score(nnlm_1, criterion, ntokens, input, target, model_type
         pass
 
     sent_score = (length) * loss.item()
-    print("ppl:", sent_score)
+    print("score:", sent_score)
 
     return sent_score, hid_1, hid_2
 
 
-def compute_scores(nbest, nnlm_1, criterion, ntokens, vocab, model_type, seq_len, 
+def compute_scores(nbest, uttid, nnlm_1, criterion, ntokens, vocab, model_type, seq_len, 
                 nnlm_2=None, weight=0.0, cross_utt=0, model_var='none'):
     r"""Compute sentence scores of nbest-list from a neural language model.
 
     Args:
         nbest:      The nbest lists represented by a dictionary from string to a list of strings.
+        uttid:      The list of sorted utterance ids.
         nnlm_1:     The main neural language model.
         criterion:  Training criterion of a neural language model, e.g. cross entropy.
         ntokens:    Vocabulary size.
@@ -326,10 +388,12 @@ def compute_scores(nbest, nnlm_1, criterion, ntokens, vocab, model_type, seq_len
         hid_2 = None
         pass
 
+    open(os.path.join(args.outfile, 'context_text.txt'), "w")
+    
     #############################
     # Compute score of each hypothesis
     #############################
-    for key in nbest.keys():
+    for key in uttid:
         print("key:", key)
         scores_list = []
 
@@ -339,16 +403,17 @@ def compute_scores(nbest, nnlm_1, criterion, ntokens, vocab, model_type, seq_len
 
         for hyp in nbest[key]:
             print("hyp:", hyp)
-            input, target, num_oov = get_input_and_target(hyp, vocab, cross_utt, seq_len)
+            inputs, target, num_oov = get_input_and_target(hyp, vocab, cross_utt, seq_len)
+            print("inputs:", inputs)
             total_oov += num_oov
             if cross_utt == 1:
-                score, new_hid_1, new_hid_2 = compute_sentence_score(nnlm_1, criterion, ntokens, input, target, 
-                                    model_type, seq_len, nnlm_2, weight, cross_utt, hid_1, hid_2)
+                score, new_hid_1, new_hid_2 = compute_sentence_score(nnlm_1, criterion, ntokens, inputs, target, 
+                                    model_type, seq_len, nnlm_2, weight, hid_1, hid_2)
                 cached_hids_1.append(new_hid_1)
                 cached_hids_2.append(new_hid_2)
             else:
-                score, _, _ = compute_sentence_score(nnlm_1, criterion, ntokens, input, target, 
-                                    model_type, seq_len, nnlm_2, weight, cross_utt, hid_1, hid_2)
+                score, _, _ = compute_sentence_score(nnlm_1, criterion, ntokens, inputs, target, 
+                                    model_type, seq_len, nnlm_2, weight, hid_1, hid_2)
                 pass
 
             if key in nbest_and_scores:
@@ -365,31 +430,9 @@ def compute_scores(nbest, nnlm_1, criterion, ntokens, vocab, model_type, seq_len
         min_id = scores_list.index(min(scores_list))
         if cross_utt == 1:
             ext_hist, _ = nbest_and_scores[key][min_id]
-            ext_hist_ids = []
-            for word in ext_hist.split():
-                try:
-                    ext_hist_ids.append(vocab[word]) # word.lower()
-                except KeyError:
-                    ext_hist_ids.append(vocab['<unk>'])
-                    pass
-                pass
-            # Write the history context
-            if os.path.exists(os.path.join(args.outfile, 'context_id.txt')) is False:
-                open(os.path.join(args.outfile, 'context_id.txt'), "w")
-                open(os.path.join(args.outfile, 'context_text.txt'), "w")
-                print("flag")
-                pass
 
-            with open(os.path.join(args.outfile, 'context_id.txt'), "r+", encoding='utf-8') as f:
-                content = f.read()
-                f.seek(0, 0)
-                f.write(' '.join(map(str, ext_hist_ids)) + '\n' + content)
-                pass
-
-            with open(os.path.join(args.outfile, 'context_text.txt'), "r+", encoding='utf-8') as f:
-                content = f.read()
-                f.seek(0, 0)
-                f.write(ext_hist + '\n'+ content)
+            with open(os.path.join(args.outfile, 'context_text.txt'), "a", encoding='utf-8') as f:
+                f.write('<s> ' + ext_hist + ' ')
                 pass
             pass
 
@@ -410,7 +453,7 @@ def compute_scores(nbest, nnlm_1, criterion, ntokens, vocab, model_type, seq_len
     return nbest_and_scores
 
 
-def write_scores(nbest_and_scores, path):
+def write_scores(nbest_and_scores, nbest_unsort, path):
     r"""Write out sentence scores of nbest lists in the following format:
         en_4156-A_030185-030248-1 7.98671
         en_4156-A_030470-030672-1 46.5938
@@ -421,11 +464,12 @@ def write_scores(nbest_and_scores, path):
         nbest_and_scores: The nbest lists and their scores represented by a
                           dictionary from string to a pair of a hypothesis and
                           its neural language model score.
+        nbest_unsort:     The nbest lists sorted in original sequence.
         path (str):       A output file of nbest lists' scores in the above format.
     """
 
     with open(os.path.join(path, 'lmwt.nn'), 'w', encoding='utf-8') as f:
-        for key in nbest_and_scores.keys():
+        for key in nbest_unsort.keys():
             for idx, (_, score) in enumerate(nbest_and_scores[key], 1):
                 current_key = '-'.join([key, str(idx)])
                 f.write('%s %.4f\n' % (current_key, score))
@@ -441,6 +485,7 @@ vocab = read_vocab(args.vocabulary)
 ntokens = len(vocab)
 print("Load nbest list: ", args.inpfile)
 nbest = load_nbest(args.inpfile)
+uttid = load_uttid(args.uttid)
 print("Compute sentence scores with a ", args.model, " model")
 
 #############################
@@ -512,9 +557,9 @@ criterion = nn.CrossEntropyLoss()
 #############################
 # Compute and write the scores
 #############################
-nbest_and_scores = compute_scores(nbest, nnlm_1, criterion, ntokens, vocab,
+nbest_and_scores = compute_scores(nbest, uttid, nnlm_1, criterion, ntokens, vocab,
                     args.model, args.seq_len, nnlm_2, args.nnlm_weight, 
                     args.cross_utt, args.model_var)
 print("Write sentence scores out")
-write_scores(nbest_and_scores, args.outfile)
+write_scores(nbest_and_scores, nbest, args.outfile)
 

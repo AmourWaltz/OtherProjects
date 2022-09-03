@@ -18,6 +18,7 @@ seq_len=128
 nnlm_weight=0.8
 model_dir=' '
 nnlm_itdir=' '
+uttid_dir=' '
 
 use_phi=false  # This is kind of an obscure option.  If true, we'll remove the old
   # LM weights (times 1-RNN_scale) using a phi (failure) matcher, which is
@@ -36,7 +37,7 @@ echo "$0 $*"  # Print the command line for logging
 [ -f ./path.sh ] && . ./path.sh
 . utils/parse_options.sh
 
-echo "$1"
+# echo "$1"
 if [ $# != 7 ]; then
    echo "Do language model rescoring of lattices (partially remove old LM, add new LM)"
    echo "This version applies an neural LM and mixes it with the n-gram LM scores"
@@ -206,23 +207,45 @@ fi
 
 if [ $stage -le 6 ]; then
   echo "$0: invoking steps/pytorchnn/compute_nbest_scores.py which computes sentence scores with a PyTorch trained neural LM."
-  $cmd JOB=1:$nj $dir/log/compute_sentence_scores_pytorchnn.JOB.log \
-    PYTHONPATH=steps/pytorchnn python steps/pytorchnn/compute_nbest_scores.py \
-        --inpfile $adir.JOB/words_text \
-        --outfile $adir.JOB \
-        --vocabulary $vocabulary \
-        --model_dir $model_dir \
-        --model $model_type \
-        --emsize $emsize \
-        --nhid $nhid \
-        --cross_utt $cross_utt \
-        --nlayers $nlayers \
-        --nhead $nhead \
-        --seq_len $seq_len \
-        --model_var $model_var \
-        --nnlm_weight $nnlm_weight \
-        --nnlm_itdir $nnlm_itdir \
-        --cuda
+  if [ $cross_utt -le 1 ]; then
+    $cmd JOB=1:$nj $dir/log/compute_sentence_scores_pytorchnn.JOB.log \
+      PYTHONPATH=steps/pytorchnn python steps/pytorchnn/compute_nbest_scores.py \
+          --inpfile $adir.JOB/words_text \
+          --outfile $adir.JOB \
+          --vocabulary $vocabulary \
+          --model_dir $model_dir \
+          --model $model_type \
+          --emsize $emsize \
+          --nhid $nhid \
+          --cross_utt $cross_utt \
+          --nlayers $nlayers \
+          --nhead $nhead \
+          --seq_len $seq_len \
+          --model_var $model_var \
+          --nnlm_weight $nnlm_weight \
+          --nnlm_itdir $nnlm_itdir \
+          --uttid $uttid_dir \
+          --cuda
+  elif [ $cross_utt -eq 2 ]; then
+    $cmd JOB=1:$nj $dir/log/compute_sentence_scores_pytorchnn.JOB.log \
+      PYTHONPATH=steps/pytorchnn python steps/pytorchnn/cross_utt_rescore.py \
+          --inpfile $adir.JOB/words_text \
+          --outfile $adir.JOB \
+          --vocabulary $vocabulary \
+          --model_dir $model_dir \
+          --model $model_type \
+          --emsize $emsize \
+          --nhid $nhid \
+          --cross_utt $cross_utt \
+          --nlayers $nlayers \
+          --nhead $nhead \
+          --seq_len $seq_len \
+          --model_var $model_var \
+          --nnlm_weight $nnlm_weight \
+          --nnlm_itdir $nnlm_itdir \
+          --uttid $uttid_dir \
+          --cuda
+  fi
 fi
 
 if [ $stage -le 7 ]; then

@@ -7,7 +7,7 @@
 ##################################################################################################
 # This script trains an LSTM or Transformer based language model with PyTorch and performs N-best rescoring.
 ##################################################################################################
-stage=0 # 0: Data preparation; 1: LM training; 2: PPL evaluation; 3: N-best rescoring.
+stage=0 # 0: Data preparation; 1: LM training; 2: PPL evaluation; 3: N-best rescoring; 4: WER computation.
 
 ##################################################################################################
 # Model settings
@@ -30,12 +30,13 @@ epoch=64 # maximum epochs for training
 dropout=0.2 # Default: 0.2
 pretrain=False # using pretrained model or not
 suffix=base # differentiate the language model with marginal difference
+level=word # training data directory. data/swbd_word/ for word-level
 
 ##################################################################################################
 # Evaluation settings
 ##################################################################################################
-ng_weight=1.0 # interpolation weight for the n-gram LM
-nnlm_weight=0.0 # interpolation weight for the NNLM
+ng_weight=0.1 # interpolation weight for the n-gram LM
+lm_itpr=0.0 # interpolation ratio for interploated NNLM
 cross_utt=0 # using cross-utterance representation or not
 nbest=20 # number of nbest list. Default: 20
 ng=sw1_fsh_fg # using the 4-gram const arpa file as old lm
@@ -47,12 +48,12 @@ ng=sw1_fsh_fg # using the 4-gram const arpa file as old lm
 set -e
 export CUDA_VISIBLE_DEVICES=$gpu
 
+nn_weight=$(echo "scale=1;(1.0- $ng_weight)"|bc) # interpolation weight for the NNLM
+itlm_weight=$(echo "scale=2;($nn_weight * $lm_itpr)"|bc) # interpolation weight for interpolated NNLM
 
 ##################################################################################################
 # Path sets
 ##################################################################################################
-# training data directory. data/swbd_word/ for word-level
-level=word
 data_dir=data/swbd_$level
 # load pretrained prior model when pretrain=True is used
 pretrain_dir=steps/pytorchnn/pretrain/transformer
@@ -62,11 +63,11 @@ ac_model_dir=exp/chain/cnn_tdnn1a_sp_ep6_specmaskonline
 lm_model_dir=nnlms/pytorch-${model_type}-emb${embedding_dim}_hid${hidden_dim}_nly${nlayers}-drop${dropout}-${model_var}-len${seq_len}-pre${pretrain}-${level}_level-${suffix}
 nn_model=$lm_model_dir/model.pt
 # interpolated language model directory
-lm_itpr_dir=nnlms/pytorch-LSTM-emb1024_hid1024_nly2-drop0.2-none-len128-preFalse-base
+lm_itpr_dir=nnlms/pytorch-LSTM-emb1024_hid1024_nly2-drop0.2-none-len128-preFalse-word_level-base
 # evaluated ppl results to save
 eval_dir=nnlms/pytorch-${model_type}-emb${embedding_dim}_hid${hidden_dim}_nly${nlayers}-drop${dropout}-${model_var}-len${seq_len}-pre${pretrain}-${level}_level-${suffix}/nnlm${nnlm_weight}-cross_utt${cross_utt}
 # decoding directory to save
-decode_dir_suffix=pytorch-${model_type}-emb${embedding_dim}_hid${hidden_dim}_nly${nlayers}-drop${dropout}-${model_var}-len${seq_len}-pre${pretrain}-${level}_level-${suffix}-ng_weight${ng_weight}-nnlm1_weight${nnlm_weight}-cross_utt${cross_utt}-${nbest}best
+decode_dir_suffix=pytorch-${model_type}-emb${embedding_dim}_hid${hidden_dim}_nly${nlayers}-drop${dropout}-${model_var}-len${seq_len}-pre${pretrain}-${level}_level-${suffix}-ng_wt${ng_weight}-itlm_wt${itlm_weight}-cross_utt${cross_utt}-${nbest}best
 
 mkdir -p $eval_dir
 
@@ -92,7 +93,7 @@ fi
 # Stage 0: Training data preparation.
 ##################################################################################################
 
-# if [ $stage -le 0 ]; then
+# if [ $stage -eq 0 ]; then
 #  local/pytorchnn/data_prep.sh $data_dir
 # fi
 
@@ -101,7 +102,7 @@ fi
 # Stage 1: Train a PyTorch neural network language model.
 ##################################################################################################
 
-if [ $stage -le 1 ]; then
+if [ $stage -eq 1 ]; then
   echo "$0: Start $model_type language model training."
     python steps/pytorchnn/train.py --data $data_dir \
             --model $model_type \
@@ -128,7 +129,7 @@ fi
 # Stage 2: Evaluate the PPL on the swbd test set with a PyTorch trained neural LM.
 ##################################################################################################
 
-if [ $stage -le 2 ]; then
+if [ $stage -eq 2 ]; then
   echo "$0: Evaluate the PPL on the swbd test set with a PyTorch trained $model_type LM in $lm_model_dir/model.pt."
     python steps/pytorchnn/evaluate.py --inpfile $data_dir/test.txt \
             --outfile $eval_dir \
@@ -142,7 +143,7 @@ if [ $stage -le 2 ]; then
             --seq_len $seq_len \
             --model_var $model_var \
             --cross_utt $cross_utt \
-            --nnlm_weight $nnlm_weight \
+            --nnlm_weight $lm_itpr \
             --nnlm_itdir $lm_itpr_dir \
             --cuda > $eval_dir/eval.log
 fi
@@ -156,7 +157,7 @@ fi
 #         The scores of nbest-list can be found in ${decode_dir}_${decode_dir_suffix}/archives.1/lmwt.nn
 ##################################################################################################
 
-if [ $stage -le 3 ]; then
+if [ $stage -eq 3 ]; then
   echo "$0: Perform nbest-rescoring on $ac_model_dir with a PyTorch trained $model_type LM."
   for decode_set in eval2000 rt02 rt03; do
       decode_dir=${ac_model_dir}/decode_${decode_set}_${ng}
@@ -173,12 +174,41 @@ if [ $stage -le 3 ]; then
         --seq_len $seq_len \
         --model_var $model_var \
         --cross_utt $cross_utt \
-        --nnlm_weight $nnlm_weight \
+        --nnlm_weight $lm_itpr \
         --nnlm_itdir $lm_itpr_dir \
-        $ng_weight data/lang_$ng $nn_model $data_dir/words.txt \
+        --uttid_dir data/$decode_set/text_sort \
+        $nn_weight data/lang_$ng $nn_model $data_dir/words.txt \
         data/${decode_set} ${decode_dir} \
         ${decode_dir}_${decode_dir_suffix}
   done
 fi
+
+
+##################################################################################################
+# Stage 4: Print out and write the WERs on eval2000, rt02, rt03 by the PyTorch trained neural LM.
+##################################################################################################
+
+if [ $stage -eq 4 ]; then
+  echo "$0: Print out and write the WERs on eval2000, rt02, rt03 by the PyTorch trained $model_type LM."
+  for decode_set in eval2000 rt02 rt03; do
+      decode_dir=${ac_model_dir}/decode_${decode_set}_${ng}
+      if [ $decode_set = eval2000 ]; then
+        for d in ${decode_dir}_${decode_dir_suffix}; do grep Sum $d/scor*/*swbd*ys | utils/best_wer.sh; done
+        for d in ${decode_dir}_${decode_dir_suffix}; do grep Sum $d/scor*/*callhm*ys | utils/best_wer.sh; done
+        for d in ${decode_dir}_${decode_dir_suffix}; do grep Sum $d/scor*/*ctm.filt.sys | utils/best_wer.sh; done
+      elif [ $decode_set = rt02 ]; then
+        for d in ${decode_dir}_${decode_dir_suffix}; do grep Sum $d/scor*/*swbd1*ys | utils/best_wer.sh; done
+        for d in ${decode_dir}_${decode_dir_suffix}; do grep Sum $d/scor*/*swbd2*ys | utils/best_wer.sh; done
+        for d in ${decode_dir}_${decode_dir_suffix}; do grep Sum $d/scor*/*swbd3*ys | utils/best_wer.sh; done
+        for d in ${decode_dir}_${decode_dir_suffix}; do grep Sum $d/scor*/*ctm.filt.sys | utils/best_wer.sh; done
+      elif [ $decode_set = rt03 ]; then
+        for d in ${decode_dir}_${decode_dir_suffix}; do grep Sum $d/scor*/*fsh*ys | utils/best_wer.sh; done
+        for d in ${decode_dir}_${decode_dir_suffix}; do grep Sum $d/scor*/*swbd*ys | utils/best_wer.sh; done
+        for d in ${decode_dir}_${decode_dir_suffix}; do grep Sum $d/scor*/*ctm.filt.sys | utils/best_wer.sh; done
+      fi
+  done
+fi
+
+
 exit 0
 
