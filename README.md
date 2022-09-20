@@ -25,6 +25,12 @@ Please run the following command and install the packages.
 | LSTM        | 1024          | 1024       | 2       | 5               | 0.2      |
 | Transformer | 512           | 4096       | 6       | 0.1             | 0.2      |
 
+<div align=center>
+<img src="figures/LSTM-Transformer.png" width="100%"/>
+</div>
+
+Examples of (a) a LSTM-Transformer architecture based LM with 6 repeated blocks in segment-wise where ① is the concatenation of the word embedding with T input words from the history utterances; ② and ③ denotes the information flow of the hidden states of the past segment $\tau-1$ sent to LSTM module and Multi-head Attention layer respectively. (b) An illustration of the information flow of LSTM-Transformer LM with the length T=3. In time stamp $\tau$, the LSTM is initialized by the final hidden states of the past segment $\boldsymbol h_{\tau-1}^l$. The hidden states $\boldsymbol H_{\tau-1}^l$ are sent for attention calculation. Solid line represent the forward calculation and back propagation. Dashed arrows represent only use forward calculation and stop gradient.
+
 ### Neural Language Model Training Steps
 
 ```shell
