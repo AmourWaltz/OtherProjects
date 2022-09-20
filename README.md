@@ -26,7 +26,7 @@ Please run the following command and install the packages.
 
 Examples of (a) a LSTM-Transformer architecture based LM with 6 repeated blocks in segment-wise where ① is the concatenation of the word embedding with T input words from the history utterances; ② and ③ denotes the information flow of the hidden states of the past segment $\tau-1$ sent to LSTM module and Multi-head Attention layer respectively. (b) An illustration of the information flow of LSTM-Transformer LM with the length T=3. In time stamp $\tau$, the LSTM is initialized by the final hidden states of the past segment $\boldsymbol h_{\tau-1}^l$. The hidden states $\boldsymbol H_{\tau-1}^l$ are sent for attention calculation. Solid line represent the forward calculation and back propagation. Dashed arrows represent only use forward calculation and stop gradient.
 
-<\br>
+</br>
 
 |             | embedding_dim | hidden_dim | nlayers | learning_rate   | dropout  |
 | ----------- | ------------- | ---------- | ------- | --------------- | -------- |
