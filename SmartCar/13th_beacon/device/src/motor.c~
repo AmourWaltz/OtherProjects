@@ -1,0 +1,118 @@
+//motor.c
+
+#include "include.h"
+
+#define LEFT_K 1.00
+#define RIGHT_K 1.00//1.14
+
+#undef MOTOR_BIPOLAR
+#ifndef MOTOR_BIPOLAR
+float gl_motor_left_k = LEFT_K;
+float gl_motor_right_k = RIGHT_K;
+
+void Motor_Init()
+{ 
+    Motor_PWM_Init();
+       
+	//控制方向的引脚
+    GPIO_Init(RIGHT_MOTOR_DIR_PORT, RIGHT_MOTOR_DIR_PIN_MASK, DIR_OUTPUT, RIGHT_MOTOR_FORWARD_LV);
+	GPIO_Init(LEFT_MOTOR_DIR_PORT, LEFT_MOTOR_DIR_PIN_MASK, DIR_OUTPUT, LEFT_MOTOR_FORWARD_LV);
+}
+
+void Set_Motor_PWM(int16 i16MotorPWM, uint8 u8MotorSele)//PWM正为正转，否则反转
+{
+	if (u8MotorSele == LEFT_MOTOR)//左电机
+	{
+	    if (i16MotorPWM > 0)
+	    {
+	        CHANGE_PWM_MOTOR_LEFT(i16MotorPWM);
+	        LPLD_GPIO_Output_b(LEFT_MOTOR_DIR_PORT, LEFT_MOTOR_DIR_PIN, LEFT_MOTOR_FORWARD_LV);
+	    }
+		else if (i16MotorPWM < 0)
+		{
+		    CHANGE_PWM_MOTOR_LEFT(-i16MotorPWM);
+			LPLD_GPIO_Output_b(LEFT_MOTOR_DIR_PORT, LEFT_MOTOR_DIR_PIN, LEFT_MOTOR_BACKWARD_LV);
+		}
+		else
+		{
+		    CHANGE_PWM_MOTOR_LEFT(0);
+		}
+	}
+	else//右电机
+	{
+	    if (i16MotorPWM > 0)
+	    {
+            CHANGE_PWM_MOTOR_RIGHT(i16MotorPWM);
+	        LPLD_GPIO_Output_b(RIGHT_MOTOR_DIR_PORT, RIGHT_MOTOR_DIR_PIN, RIGHT_MOTOR_FORWARD_LV);
+	    }
+		else if (i16MotorPWM < 0)
+		{
+            CHANGE_PWM_MOTOR_RIGHT(-i16MotorPWM);
+			LPLD_GPIO_Output_b(RIGHT_MOTOR_DIR_PORT, RIGHT_MOTOR_DIR_PIN, RIGHT_MOTOR_BACKWARD_LV);
+		}
+		else
+		{
+            CHANGE_PWM_MOTOR_RIGHT(0);
+		}
+	}	
+}
+#else
+
+void Motor_Init()
+{ 
+    Motor_PWM_Init();       
+}
+
+void Set_Motor_PWM(int16 i16MotorPWM, uint8 u8MotorSele)//PWM正为正转，否则反转
+{
+    int16 i16PWM;
+    
+    i16PWM = (i16MotorPWM+10000)/2;
+    
+	if (u8MotorSele == LEFT_MOTOR)//左电机
+	{
+        CHANGE_PWM_MOTOR_LEFT(i16PWM);
+	}
+	else//右电机
+	{
+        CHANGE_PWM_MOTOR_RIGHT(i16PWM);
+	}	
+}
+
+#endif
+
+//电机输出
+void MotorOutput()
+{
+    int16 i16CarLeftPWM;
+    int16 i16CarRightPWM;
+    
+    //g_carInfo.i16CarLeftPWM = g_carInfo.i16UpStandPWM + g_carInfo.i16DirectionPWM;
+    //g_carInfo.i16CarRightPWM = g_carInfo.i16UpStandPWM - g_carInfo.i16DirectionPWM;
+    //gl_div_pwm_set = gl_direction_set;
+        
+    i16CarLeftPWM = gl_upstand_pwm + gl_div_pwm_set;
+    i16CarRightPWM = gl_upstand_pwm - gl_div_pwm_set;
+      
+    //需要乘系数
+    //限幅
+	i16CarLeftPWM = (int16)Limiter(i16CarLeftPWM, -MAX_MOTOR_PWM, MAX_MOTOR_PWM);
+	i16CarRightPWM = (int16)Limiter(i16CarRightPWM, -MAX_MOTOR_PWM, MAX_MOTOR_PWM);       
+    
+    //if (g_carInfo.u8PWM_ControlFlag == 0)
+     if(gl_car_run_flag == CAR_STOP)
+    {
+        i16CarLeftPWM = i16CarRightPWM = 0;
+    }
+    
+    Set_Motor_PWM(i16CarLeftPWM, LEFT_MOTOR);            
+    Set_Motor_PWM(i16CarRightPWM, RIGHT_MOTOR);  
+}
+void CarStop()
+{
+  gl_car_run_flag = CAR_STOP;
+}
+void CarRestart()
+{
+    gl_car_run_flag = CAR_RUN ;
+}

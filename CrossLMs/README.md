@@ -1,8 +1,6 @@
-# MyProjects
+# CrossUttLMs
 
-## CrossUttLMs
-
-### Introduction:
+## Introduction:
 
 Language models have been conventionally evaluated on the sentence level, which derives from the typical decoding procedure
 which is carried out for each utterance independently. The utterance assumed to be a sentence is a natural unit for parallel decoding in an off-line speech recognition scenario.
@@ -11,16 +9,16 @@ Practically, multiple consecutive utterances can be part of the same discourse, 
 
 The code is based on the Kaldi recipe and mainly implemented using PyTorch. A single GPU card is used for training. The detailed configurations and the training process for Cross-Utterance LMs are presented as follows
 
-### Prerequisite:
+## Prerequisite:
 
 Please run the following command and install the packages.
 ```shell
  pip install -r requirements.txt
 ```
 
-### Implementation:
+## Implementation:
 
-#### Baseline Language Model Settings
+### Baseline Language Model Settings
 
 <div align=center>
 <img src="figures/LSTM-Transformer.png" width="100%"/>
@@ -35,7 +33,7 @@ Examples of (a) a LSTM-Transformer architecture based LM with 6 repeated blocks 
 | LSTM        | 1024          | 1024       | 2       | 5               | 0.2      |
 | Transformer | 512           | 4096       | 6       | 0.1             | 0.2      |
 
-#### Neural Language Model Training Steps
+### Neural Language Model Training Steps
 
 ```shell
  # level: using word-level or bpe-level data set.
@@ -47,25 +45,3 @@ Examples of (a) a LSTM-Transformer architecture based LM with 6 repeated blocks 
  # Train a baseline LSTM LM in bpe-level:
  bash local/pytorchnn/run_nnlm_lstm_swbd.sh --stage 1 --gpu 2 --level bpe
 ```
-
-
-## TexasPoker
-
-Establishing a Heads-up Limit Hold’em Poker model, and using Counterfactual Regret Minimization to design a highly intelligent system. The optimal strategy is selected by CFR algorithm with bluff strategies. 
-
-I proposed an advanced 9-bucketing abstraction and other data abstractions to reduce complexities of time and space, which has improved the performance when testing with human players than before.
-
-## SmartCar
-
-Designed a tracking car with OV7725 camera to obtain the position of the beacon light in the arena, run to the destination by image processing and route programming.
-
-Designed an energy-efficient car which use the wireless charge module to transform the magnetic energy and store the energy into farad capacitors with the adaptive and constant-power charging, and use electromagnetic sensor to seek electromagnetic wire then run along the track.
-
-## FECG_detection
-
-The fetal ECG signal is pre-processed with ICA to obtain a signal source with less interference from maternal ECG. The fetal heartbeat segments as positive samples and the background segments as negative samples are intercepted to make a training set and train the model with CNN-LSTM.
-
-It’s the first attempt to detect the fetal ECG heartbeat using CNN-LSTM and active learning to implement an inter-patient model, while traditional methods could only complete in intra-patient method.
-
-It has reached an accuracy of 92% (compared with state-of-the-art traditional method Wavelet Analysis which has reached 89% on the same database from PhysioNet Computing in Cardiology Challenge 2013).
-

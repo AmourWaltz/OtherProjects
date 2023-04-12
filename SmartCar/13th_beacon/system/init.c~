@@ -1,0 +1,101 @@
+#include "include.h"
+
+void InitParameter()
+{
+    //g_eCarState = SpeedUp;
+    gl_beep_CTL_flag = ON;
+    gl_upstand_flag = OFF;
+    //g_carInfo.CameraInfo.a = 10;
+    //g_carInfo.CameraInfo.u8DigitalCameraThreshold = 60;
+       
+    //g_carInfo.fLeftMotor_k = 1;
+//    g_carInfo.Detect.fRingNormalDistance = 0;
+        
+    //Flash初始化参数
+    InitFlashParameter();
+}
+
+void Init_All()
+{      
+    DisableInterrupts;
+    Motor_Init();
+    //Flash
+    FLASH_Init();  
+    FlashReadData();
+    
+    
+    InitParameter();
+
+
+    /*OLED初始化*/
+    oled_init();  
+
+    //摄像头初始化    
+    SCCB_GPIO_init();    
+    ov7725_eagle_init();
+    Camera_Init();    
+
+    //GPIO
+    Switch_Init();
+    Beep_Init();
+    LED_Init();
+    Five_Dir_Init();
+
+    
+    //红外
+    TELE_Init();
+
+    //中断
+    PIT_Init();
+    
+    //ADC
+    ADC_Init();   
+
+    //GPT
+    GPT_Init();
+    
+    //UART
+    UART_Init();
+
+    oled_fill(0x00); 
+    //SD   
+    SD_Init();  
+
+    //中断优先级    
+    NVIC_Init();  
+
+    TELE_Enable();   
+    
+    PIT_ONE_Enable(PIT_0);    
+    PIT_ONE_Enable(PIT_1);
+    //PIT_ONE_Enable(PIT_2);
+    PIT_ONE_Enable(PIT_3);
+
+    //使能场中断
+    
+    enable_irq(V_PORT_IRQn);
+    enable_irq(H_PORT_IRQn);
+    enable_irq(ISR_PROC_PORT_IRQn);
+    
+    
+    GPIO_I2C_Init();
+    MPU6050_Init();    
+    
+    EnableInterrupts;
+
+    
+//    //需要延时函数   
+    
+    Delay_ms(500);//需要pit所以最后才延时
+    oled_fill(0x00);
+    upstand_init();
+    
+    gl_car_run_flag = CAR_RUN;
+    gl_upstand_flag = ON;
+    gl_speed_CLRL_flag = ON;//ON;
+    gl_direction_flag = ON;//ON;
+}
+
+
+
+

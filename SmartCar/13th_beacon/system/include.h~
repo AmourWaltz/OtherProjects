@@ -1,0 +1,224 @@
+#ifndef _INCLUDE_H_
+    #define _INCLUDE_H_
+
+//#define USE_ANALOG_CAMERA
+#define USE_DIGITAL_CAMERA
+
+#define OLD_CAR_MODEL 0
+#define NEW_CAR_MODEL 1
+
+#define PIN_ASSIGN_1
+//#define PIN_ASSIGN_2
+#define ON 1
+#define OFF 0
+
+#include "common.h"
+
+//debug
+#include "slave_computer.h"
+#include "car_test.h"
+#include "DisplayImage.h"
+#include "SD_Control.h"
+#include "flash.h"
+#include "oled.h"
+#include "scope.h"
+#include "SD.h"
+#include "file.h"
+#include "tele.h"
+#include "ANO_DT.h"
+
+//device
+#include "camera.h"
+#include "camera_digital.h"
+#include "encoder.h"
+#include "IOdevice.h"
+#include "motor.h"
+#include "acce.h"
+#include "gyro.h"
+#include "MPU6050.h"
+#include "MPU3050.h"
+#include "L3G4200.h"
+#include "MMA845x.h"
+
+//driver
+#include "adc.h"
+#include "gpio.h"
+#include "I2C.h"
+#include "GPIO_I2C.h"
+#include "GPT.h"
+#include "Nvic.h"
+#include "pit.h"
+#include "pwm.h"
+#include "uart.h"
+#include "VCAN_SCCB.h"
+#include "FIRE_OV7725_REG.h"
+#include "FIRE_OV7725_Eagle.h"
+
+//signal
+#include "detect.h"
+#include "process.h"
+#include "image.h"
+#include "Algorithm.h"
+
+//control
+#include "upstand.h"
+#include "speed.h"
+#include "kalman_filter.h"
+#include "direction.h"
+#include "current_loop.h"
+
+//system
+#include "interrupt.h"
+#include "init.h"
+#include "general.h"
+
+#define USE_INFR
+#define GET_ROUND
+
+#define TIMER_PROCESS_CH 4
+#define TIMER_SD_CH 5
+#define TIMER_UPSTAND_CH 6
+#define TIMER_IMAGE_CH 7
+
+#define LEFT 0
+#define RIGHT 1//extern struct CarInfo g_carInfo;
+//extern enum CarState g_eCarState;
+extern float g_fVisualScopeData[10];//传送给虚拟示波器的数据
+
+extern uint16 g_row[IMAGE_X_MAX];
+extern uint16 g_column[IMAGE_Y_MAX];
+extern uint16 g_RowCol[IMAGE_X_MAX][IMAGE_Y_MAX];
+extern uint8 g_corrected_image[IMAGE_X_MAX][IMAGE_Y_MAX];              //取行列后的图像
+
+//全局参数
+extern uint32 gl_time_100us ;
+extern float gl_cur_direction;	//小车方向 
+extern float gl_cur_speed;		//小车速度
+extern float gl_r_speed;
+extern float gl_l_speed;
+extern float gl_cur_acce;
+extern float gl_car_running_distance ;
+extern float gl_l_distance ;
+extern float gl_r_distance ;
+
+extern uint8 gl_beep_CTL_flag ;
+extern uint8 gl_upstand_flag ;
+extern uint8 gl_speed_CLRL_flag ;
+extern uint8 gl_car_run_flag ;
+extern uint8 gl_direction_flag;
+//extern uint8 gl_sd_useable_flag;
+
+extern uint8 g_u8DigitalCameraThreshold ;
+extern uint8 (*g_u8ImageSource)[CAMERA_W];
+extern uint8 (*g_u8image_64X128)[IMAGE_Y_MAX];
+extern uint8 g_Camera_Is_Image_Ok;
+
+extern uint32 g_image_period;
+extern uint32 g_image_process_time;
+extern uint32 g_sd_write_time;
+extern uint32 g_upstand_time;
+
+extern int16 oled_data[16];
+extern int16 SD_data[16];
+extern uint8 g_u8SwitchPinVal[6];
+extern uint8 g_u8SD_SendFlag;
+//直立
+
+extern float gl_acceAngle ;	
+extern float gl_gyroAngle ;	
+extern float gl_curAngle ;		//小车当前倾角
+extern float gl_rotate_dps ;   //俯仰方向角速度
+extern float gl_dir_rotate;    //转向角速度
+extern float gl_capsize_rotate; //侧翻角速度
+
+extern float gl_balance_angle;	//平衡时车辆倾角
+extern float gl_err_angle;		//与目标角度差值
+
+extern float gl_upstand_p;
+extern float gl_upstand_d;
+extern float gl_upstand_i;
+extern float gl_upstand_anglr_p;
+extern float gl_upstand_anglr_d;
+
+extern float gl_angle_set ; 	//倾角设定值 
+extern float gl_max_angle_set;
+extern int32 gl_upstand_pwm;
+
+//速度
+extern float gl_speed_p;
+extern float gl_speed_i;
+extern float speed_i_err;
+extern float max_speed_i_err;
+extern float max_delta_angle;      //速度增量PID最大变化率
+
+extern int16 gl_speed_set ;		//速度设定值 
+
+extern float gl_motor_left_k ;
+extern float gl_motor_right_k ;
+extern int32 gl_pwm_set ;		//电机PWM输出,数值为实际电机在速度分量上的PWM输出
+extern int32 gl_div_pwm_set;       //电机PWM输出,数值为实际电机在方向分量上的PWM输出
+
+
+    extern uint16 gl_u16bat_voltage;
+    extern uint16 gl_u16bat_ADC;
+    //电流环
+    
+    extern uint16 g_u16LeftCurrentADC;
+    extern uint16 g_u16RightCurrentADC;
+    extern uint16 u16LeftCurrentADC;
+    extern uint16 u16RightCurrentADC;
+    extern uint16 u16RefVoltageADC;
+    
+    extern float fLeftCurrent_A;
+    extern float fRightCurrent_A;
+    extern float fRefVoltage;
+    
+    extern float fExpectLeftCurrent_A;
+    extern float fExpectRightCurrent_A;
+    
+    extern float fCL_Current_P;
+    extern float fCL_Current_I;
+
+    extern float fCL_Speed_P;
+    extern float fCL_Speed_I;
+
+//方向
+extern float gl_image_err;
+extern int gl_stopline_en_distance;
+
+extern float gl_direction_p;
+extern float gl_direction_d;
+extern float gl_direction_i;
+extern float gl_dir_anglr_p;
+extern float gl_dir_anglr_d;
+
+extern int32 gl_direction_set;	//方向设定值 
+extern int32 gl_dir_pwm ;
+
+//图像
+extern struct Detect Detect;
+
+extern int edge_left[IMAGE_ROW];      //左边缘
+extern int edge_right[IMAGE_ROW];    //右边缘
+extern int track_center[IMAGE_ROW];
+extern vuint8 imageshow[IMAGE_ROW][IMAGE_NUM];
+extern vuint8 (*cur_image)[IMAGE_NUM];
+
+
+
+extern int edge_left_temp[IMAGE_ROW];      //左边缘
+extern int edge_right_temp[IMAGE_ROW];    //右边缘
+extern int track_center_temp[IMAGE_ROW];	//补全处理后的中心
+extern int track_width[IMAGE_ROW];	//路的宽度
+
+extern uint8 round_mode;
+
+extern uint8 round_count;
+extern uint16 round_num;
+extern uint16 round_mode_list[MAX_ROUND_NUM];
+
+extern int img_furthest_line;
+
+
+
+#endif

@@ -1,0 +1,80 @@
+/*=============================================
+    @file  servo.c
+    @brief	
+    @function
+===============================================
+*/
+
+#include "servo.h"
+#include "include.h"
+
+extern CarInfo g_carInfo;
+extern PARAM parameter;
+
+uint32 PWMofServo = 0; 
+//调用前应完成下位机初始化
+void Servo_Init(void)
+{
+    PWM_Init(SERVO_FTM, SERVO_FTM_CH, SERVO_PORT_PIN, PWM_Servo_Period, parameter.servo_middle);   
+    Servo_PWM(parameter.servo_middle);
+}
+
+void Servo_PWM(uint32 PWMDuty)
+{
+    if(PWMDuty > parameter.servo_max)
+    {
+	PWMDuty = parameter.servo_max;
+    }
+    else if(PWMDuty < parameter.servo_min)
+    {
+	PWMDuty = parameter.servo_min;
+    }
+    
+    PWMofServo = PWMDuty;
+    g_carInfo.PWMofServo = PWMDuty;
+    
+    //范围更大
+   // SERVO_FTM_PWM_ChangeDuty(SERVO_FTM, SERVO_FTM_CH, PWMDuty);
+    //新数码舵机
+    PWM_Set(SERVO_FTM, SERVO_FTM_CH, PWMDuty);
+}
+
+uint32 GetServoPWM(void)
+{
+    return PWMofServo ;
+}
+
+int16 GetServoPWMDelta(void)
+{
+    int16 temp = 0;
+    temp = PWMofServo - parameter.servo_middle;
+    return temp;
+}
+
+
+//四舍五入
+int Get_servo_angle(void)
+{
+    int angle = 0;
+    int32 pwm_temp = 0;
+    
+    pwm_temp = PWMofServo;
+    
+    if (pwm_temp >= parameter.servo_middle)
+    {
+        angle = (int)(0.5+((pwm_temp-parameter.servo_middle)*19+300)/600);   
+        angle = -angle;
+    }
+    else
+    {
+        angle = (int)(0.5+((parameter.servo_middle-pwm_temp)*19+300)/600); 
+    }
+    
+    return angle;
+}
+
+int32 read_steer_pwm_delt(void)
+{
+    return (PWMofServo - parameter.servo_middle);
+}
+

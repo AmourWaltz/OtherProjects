@@ -1,0 +1,255 @@
+#include "include.h"
+#include "image.h"
+#include "math.h"
+
+//vuint8 edge_left[IMAGE_ROW];      //左边缘
+//vuint8 edge_right[IMAGE_ROW];    //右边缘
+//vuint8 track_center[IMAGE_ROW];	//中心
+int edge_left[IMAGE_ROW];      //左边缘
+int edge_right[IMAGE_ROW];    //右边缘
+int track_center[IMAGE_ROW];	//中心
+vuint8 imageshow[IMAGE_ROW][IMAGE_NUM];
+vuint8 (*cur_image)[IMAGE_NUM];
+int img_furthest_line;
+#define Limit_to_0(x) (((x)>127) ? (0):(x))
+#define Limit_to_127(x) (((x)>127) ? (127):(x))
+
+#define OVER_SEARCH_RANGE 25 //左右搜索重复区域 
+
+#define MAX_OVER_ERR_LINE_COUNT 2
+#define PROCESS_START_LINE 5 
+
+void image()
+{
+    //if((g_fieldFlag == EVEN) && (g_OddImageTransferFinishFlag == ON ) )  //偶场处理奇场数据
+    if(g_OddImageTransferFinishFlag == ON)  //偶场处理奇场数据
+    {
+        g_OddImageProcessFinishFlag = OFF;
+        get_edge(g_imageOdd, edge_left, edge_right);
+        g_OddImageProcessFinishFlag = ON;
+        Algorithm();
+    }
+    //else if((g_fieldFlag == ODD) && (g_EvenImageTransferFinishFlag == ON ) )  //奇场处理偶场数据
+    else //if(g_EvenImageTransferFinishFlag == ON  )  //奇场处理偶场数据
+    {
+        g_EvenImageProcessFinishFlag = OFF;
+        get_edge(g_imageEven, edge_left, edge_right);
+        g_EvenImageProcessFinishFlag = ON;
+        Algorithm();
+    }
+    //else
+    {
+    //	Camera_Init();
+    }
+    //process_edge();
+#ifdef CAR_DEBUG
+    //show_image_process();
+#endif
+}
+void get_edge(vuint8 cameraimage[IMAGE_ROW][IMAGE_NUM], int *edge_left, int *edge_right)
+{
+    /*uint8 linecount;
+    uint8 pointcount;
+    uint8 blackcount = 0, whitecount = 0;
+    uint8 edgetmp;*/
+    int linecount;      
+    int pointcount;
+    int blackcount = 0, whitecount = 0;
+    int blackflag = 0, whiteflag = 0;
+    int left_unfound_count = 0 , right_unfound_count = 0;   //噪声行计数 
+    int edgetmp;
+    int unfound_count = 0;
+    vuint8 *cameraline;
+    uint8 trackflag = OUT_TRACK;
+    int center_temp = IMAGE_NUM/2;
+
+    cameraline = cameraimage[0];
+    cur_image = cameraimage;
+    edge_left[0] = 0;
+    edge_right[0] = IMAGE_NUM;
+    
+    uint8 research_flag = 0;
+    /*for(pointcount = 0,trackflag = OUT_TRACK; pointcount < IMAGE_NUM; pointcount++)       //搜寻最近的一条线的跑道边沿
+    {
+        if((trackflag == OUT_TRACK)&&(whitecount>3))       //搜寻右边界
+        {
+            trackflag = IN_TRACK;
+            edge_left[0] = pointcount - whitecount;     //减去数过了的电 
+        }
+        else if((trackflag == IN_TRACK)&&(blackcount>3))    //搜寻左边界
+        {
+            trackflag = OUT_TRACK;
+            edge_right[0] = pointcount - blackcount;
+            break;
+        }
+
+        if(cameraline[pointcount] == 0) //黑点计数 
+        {
+            blackcount++;
+            whitecount = 0;
+        }
+        else                            //白点计数 
+        {
+            whitecount++;
+            blackcount = 0;
+        }
+
+    }
+    track_center[0] = (edge_left[0] + edge_right[0])/2;   */  //获取最近行的中心线 
+    track_center[0] = IMAGE_NUM/2;
+    edge_left[0] = 20 ;
+    edge_right[0] = IMAGE_NUM-20;
+    //在第一行的基础上，从中间向两边搜索边界 
+    for(linecount = 1, left_unfound_count = 0, right_unfound_count = 0; linecount < IMAGE_ROW; linecount++)  //在上次边界临近范围内搜寻下一条边界
+    {
+        cameraline = cameraimage[linecount];
+        edge_left[linecount] = 0;
+        edge_right[linecount] = IMAGE_NUM-1;
+        track_center[linecount] = NOT_FOUND;
+        
+        //        blackcount=0,whitecount=0; pointcount > edgetmp; pointcount--)       //搜寻左边缘
+
+        //for(pointcount = (track_center[linecount-unfound_count-1] +(track_center[linecount-1]==63?OVER_SEARCH_RANGE:0)),edgetmp = 0,
+                //(track_center[linecount-1] == NOT_FOUND)?(center_temp):(track_center[linecount-1]),edgetmp = 0,
+                //(Limit_to_127(edge_left[linecount-1]+SEARCH_RANGE) track_center[linecount-1],    //循环初值 
+                //Limit_to_0(edge_left[linecount-1]-SEARCH_RANGE),    //循环上限 
+        for(pointcount = (track_center[linecount-unfound_count-1] + 
+        ((track_center[linecount-1]>IMAGE_NUM-50)||(track_center[linecount-1]==NOT_FOUND)? OVER_SEARCH_RANGE:10)),
+        edgetmp = 0, blackcount=0,whitecount=0,blackflag=0,whiteflag=0; pointcount > edgetmp; pointcount--)       //搜寻左边缘
+        {
+            while(cameraline[pointcount]&&(pointcount>0))   //搜白点 
+            {
+                pointcount--;
+                whitecount++;
+                whiteflag = 1;
+            }
+            while((!cameraline[pointcount])&&(blackcount < 15)&&(pointcount>0))  //搜黑点 
+            {
+                pointcount--;
+                blackcount++;
+                blackflag = 1;
+            }
+            if((blackcount > 10)&&(whiteflag==0)&&(pointcount < 20))
+            {
+                edge_left[linecount] = NOT_FOUND;
+                //break;
+            }
+            else if((blackcount > 2)&&(whitecount>8))       //若从白线中出现连续黑点，判定为边界 
+            {
+                edge_left[linecount] = pointcount + blackcount;
+                left_unfound_count = 0;
+                break;
+            
+            }
+            //else if(whitecount > 0)
+            {
+                blackcount=0;
+            }
+            //else if(blackcount > 0)
+            {
+                whitecount=0;
+            } 
+        }
+        if(whiteflag == 0)
+        {
+            edge_left[linecount] = NOT_FOUND;
+        }
+        else if(blackflag == 0)
+        {
+            edge_left[linecount] = 0;
+        }
+
+   //        blackcount=0,whitecount=0; pointcount < edgetmp; pointcount++)       //搜寻右边缘
+        //for(pointcount = track_center[linecount-unfound_count-1] -(track_center[linecount-1]==63?OVER_SEARCH_RANGE:0), edgetmp = 127,
+                //track_center[linecount-1] == NOT_FOUND)?(center_temp):(track_center[linecount-1]), edgetmp = 127,
+        for(pointcount = track_center[linecount-unfound_count-1] -
+        ((track_center[linecount-1]>50)||(track_center[linecount-1]==NOT_FOUND)?OVER_SEARCH_RANGE:10), 
+        edgetmp = 127, blackcount=0,whitecount=0,blackflag=0,whiteflag=0; (pointcount < edgetmp); pointcount++)       //搜寻右边缘
+        {
+            while(cameraline[pointcount]&&(pointcount<IMAGE_NUM-1))
+            {
+                pointcount++;
+                whitecount++;
+                whiteflag = 1;
+            }
+            while((!cameraline[pointcount])&&(blackcount < 15)&&(pointcount<127))
+            {
+                pointcount++;
+                blackcount++;
+                blackflag = 1;
+            }
+            if((blackcount > 10)&&(whiteflag==0)&&(pointcount > edgetmp-20))
+            {
+                edge_right[linecount] = NOT_FOUND;
+                //break;
+            }
+            else if((blackcount > 2)&&(whitecount>8))
+            {
+                edge_right[linecount] = pointcount - blackcount;
+                //edge_right[linecount] = pointcount ;
+                right_unfound_count = 0;
+                break;
+            }
+            //else if(whitecount > 0)
+            {
+                blackcount=0;
+            }
+            //else if(blackcount > 0)
+            {
+                whitecount=0;
+            } 
+        }
+        if(whiteflag == 0)
+        {
+            edge_right[linecount] = NOT_FOUND;
+        }
+        else if(blackflag == 0)
+        {
+            edge_right[linecount] = IMAGE_NUM-1;
+        }
+        
+        if((edge_left[linecount] != NOT_FOUND)&&(edge_right[linecount] != NOT_FOUND))      //正常 
+        {
+            track_center[linecount] = (edge_left[linecount] + edge_right[linecount])/2;
+            center_temp = track_center[linecount];
+            unfound_count = 0;		//丢失行计数
+        }
+        else                                                                            //失去左右边界 
+        {
+                track_center[linecount] = NOT_FOUND;
+                unfound_count++;
+        }
+    }
+}
+
+
+void show_image_process()
+{
+    uint8 num, row;
+    for(row=0; row<IMAGE_ROW; row++)
+    {
+        for(num=0; num<IMAGE_NUM; num++)
+        {
+            if(row == img_furthest_line)
+            {
+                imageshow[row][num]=1;
+            }
+            else
+            {
+                imageshow[row][num]=0;		//缓存数组清0
+            }
+            
+        }
+        if(track_center[row]!=NOT_FOUND)
+        {
+            imageshow[row][edge_left[row]]=1;
+            imageshow[row][edge_right[row]]=1;
+            //imageshow[row][track_center[row]]=1;
+            imageshow[row][track_center_temp[row]]=1;
+            imageshow[row][IMAGE_NUM/2]=1;		//显示中线
+            imageshow[row][(int)Limiter(center_slope*row+center_b, 0, 127)]=1;	
+        }
+    }
+    oled_print_image(imageshow,IMAGE_ROW,IMAGE_NUM);
+}
+
