@@ -61,7 +61,7 @@ Designed a tracking car with OV7725 camera to obtain the position of the beacon 
 
 Designed an energy-efficient car which use the wireless charge module to transform the magnetic energy and store the energy into farad capacitors with the adaptive and constant-power charging, and use electromagnetic sensor to seek electromagnetic wire then run along the track.
 
-## FECG_detection
+## DeepFECG
 
 The fetal ECG signal is pre-processed with ICA to obtain a signal source with less interference from maternal ECG. The fetal heartbeat segments as positive samples and the background segments as negative samples are intercepted to make a training set and train the model with CNN-LSTM.
 
